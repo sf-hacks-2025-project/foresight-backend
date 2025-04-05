@@ -1,13 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routes.auth import router as auth_router
-from routes.users import router as users_router
-from routes.items import router as items_router
+from routes.vision import router as vision_router
+from routes.conversation import router as conversation_router
+from routes.user import router as user_router
 
 app = FastAPI(
     title="SFHacks API",
-    description="API for SFHacks Application",
+    description="API for SFHacks Project",
     version="0.1.0"
 )
 
@@ -19,13 +19,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth_router, prefix="/api", tags=["authentication"])
-app.include_router(users_router, prefix="/api", tags=["users"])
-app.include_router(items_router, prefix="/api", tags=["items"])
+app.include_router(user_router, prefix="/api", tags=["user"])
+app.include_router(vision_router, prefix="/api", tags=["vision"])
+app.include_router(conversation_router, prefix="/api", tags=["conversation"])
 
 @app.get("/")
 async def root():
-    return {"message": "hello world"}
+    return {"message": "hi i am running"}
 
 if __name__ == "__main__":
     import uvicorn
