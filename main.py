@@ -4,13 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from routes.auth import router as auth_router
 from routes.users import router as users_router
 from routes.items import router as items_router
-from modules.database import init_pinecone
-
-pinecone_index = init_pinecone()
 
 app = FastAPI(
     title="SFHacks API",
-    description="API for SFHacks",
+    description="API for SFHacks Application",
     version="0.1.0"
 )
 
