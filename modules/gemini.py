@@ -41,7 +41,7 @@ async def get_visual_context(picture_file):
     if not picture_file:
         raise ValueError("Picture file is required")
     
-    picture = client.files.upload(file=picture_file)
+    picture = client.files.upload(file=picture_file, config=types.UploadFileConfig(mime_type='image/png'))
     
     base_prompt = f"""
     You are an assistant for visually impaired users. Given an image, create a detailed visual context that includes:
