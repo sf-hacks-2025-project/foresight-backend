@@ -44,7 +44,7 @@ async def get_visual_context(picture_file):
     if not picture_file:
         raise ValueError("Picture file is required")
     
-    picture = client.files.upload(file=picture_file, config=types.UploadFileConfig(mime_type='image/png'))
+    picture = await client.aio.files.upload(file=picture_file, config=types.UploadFileConfig(mime_type='image/png'))
     
     base_prompt = f"""
     You are an assistant for visually impaired users. Given an image of their point of view, create a detailed visual context that includes:
@@ -63,7 +63,7 @@ async def get_visual_context(picture_file):
     Be thorough and precise, as this context will be used to answer future questions about objects seen.
     """
 
-    response = client.models.generate_content(
+    response = await client.aio.models.generate_content(
         model='gemini-2.0-flash',
         contents=[base_prompt, picture],
         config=visual_context_config
@@ -121,8 +121,8 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
     
     files = []
     if audio_file:
-        files.append(client.files.upload(file=audio_file, config=types.UploadFileConfig(mime_type='audio/mpeg')))
-
+        audio_upload = await client.aio.files.upload(file=audio_file, config=types.UploadFileConfig(mime_type='audio/mpeg'))
+        files.append(audio_upload)
     
     base_prompt = f"""
     You are an assistant for visually impaired users. 
@@ -166,7 +166,7 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
     
     while retry_count <= max_retries:
         try:
-            response = client.models.generate_content(
+            response = await client.aio.models.generate_content(
                 model='gemini-2.0-flash',
                 contents=contents,
                 config=query_config
