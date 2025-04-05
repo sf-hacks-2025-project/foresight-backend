@@ -2,6 +2,7 @@ from fastapi import APIRouter, status
 from modules import eleven_labs
 from elevenlabs import AsyncElevenLabs, VoiceSettings
 from fastapi.responses import StreamingResponse
+import os
 
 router = APIRouter()
 
@@ -9,7 +10,7 @@ router = APIRouter()
 async def tts(text: str):
     client: AsyncElevenLabs = await eleven_labs.get_eleven_client()
     response = client.text_to_speech.convert(
-        voice_id="9BWtsMINqrJLrRacOk9x",
+        voice_id=os.getenv('ELEVEN_LABS_VOICE_ID'),
         output_format="mp3_22050_32",
         text=text,
         model_id="eleven_flash_v2_5",
