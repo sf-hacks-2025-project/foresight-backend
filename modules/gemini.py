@@ -118,7 +118,7 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
     
     files = []
     if audio_file:
-        files.append(client.files.upload(file=audio_file))
+        files.append(client.files.upload(file=audio_file, config=types.UploadFileConfig(mime_type='audio/mpeg')))
 
     
     base_prompt = f"""
