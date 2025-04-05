@@ -13,7 +13,8 @@ class TextPromptRequest(BaseModel):
 @router.post("/conversation/text", status_code=status.HTTP_200_OK)
 async def text_prompt(request: TextPromptRequest):
     try:
-        return await gemini.generate_response(request.user_id, text_query=request.text_query)
+        print(request)
+        return await gemini.generate_response(user_id=request.user_id, text_query=request.text_query)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

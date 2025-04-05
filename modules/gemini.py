@@ -41,7 +41,7 @@ async def get_visual_context(picture_file):
     if not picture_file:
         raise ValueError("Picture file is required")
     
-    picture = await client.files.upload_async(file=picture_file)
+    picture = client.files.upload(file=picture_file)
     
     base_prompt = f"""
     You are an assistant for visually impaired users. Given an image, create a detailed visual context that includes:
@@ -60,7 +60,7 @@ async def get_visual_context(picture_file):
     Be thorough and precise, as this context will be used to answer future questions about objects seen.
     """
 
-    response = await client.models.generate_content_async(
+    response = client.models.generate_content(
         model='gemini-2.0-flash',
         contents=[base_prompt, picture],
         config=visual_context_config
@@ -118,7 +118,7 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
     
     files = []
     if audio_file:
-        files.append(await client.files.upload_async(file=audio_file))
+        files.append(client.files.upload(file=audio_file))
 
     
     base_prompt = f"""
@@ -161,13 +161,13 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
     
     while retry_count <= max_retries:
         try:
-            response = await client.models.generate_content_async(
+            response = client.models.generate_content(
                 model='gemini-2.0-flash',
                 contents=contents,
                 config=query_config
             )
             
-            response_text = response.text
+            response_text = response.text.strip()
 
             # Save the user's message to conversation history
             if text_query:
@@ -177,7 +177,7 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
             await database.save_message(user_id, "assistant", response_text)
             
             return response_text
-            
+
         except errors.ClientError as e:
             # Check if it's a rate limit error (429)
             if hasattr(e, 'status_code') and e.status_code == 429:
