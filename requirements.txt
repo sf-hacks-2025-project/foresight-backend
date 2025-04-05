@@ -9,3 +9,5 @@ elevenlabs>=0.3.0
 nest-asyncio>=1.5.8
 fastapi-cors>=0.0.6
 speechrecognition>=3.14.2
+openai-whisper>=20231117
+pydub>=0.25.1

@@ -86,6 +86,29 @@ async def wipe_conversation_history(user_id: str):
 async def wipe_visual_history(user_id: str):
     await visual_collection.delete_many({"user_id": user_id})
 
+async def update_message(user_id: str, role: str, old_content: str, new_content: str):
+    """
+    Updates a message in the conversation history.
+    
+    Args:
+        user_id: The ID of the user.
+        role: The role of the message sender (user or assistant).
+        old_content: The original content of the message to update.
+        new_content: The new content to replace it with.
+    """
+    # Find the most recent message matching the criteria
+    result = await conversation_collection.find_one_and_update(
+        {
+            "user_id": user_id,
+            "role": role,
+            "content": old_content
+        },
+        {"$set": {"content": new_content}},
+        sort=[("timestamp", -1)]  # Sort by timestamp descending to get the most recent
+    )
+    
+    return result
+
 def search_visual_contexts(user_id: str, keywords: list[str], limit: int = 5) -> list[dict]:
     """
     Search for visual contexts that contain any of the provided keywords.
@@ -115,36 +138,25 @@ async def _search_visual_contexts_async(user_id: str, keywords: list[str], limit
         "$or": []
     }
     
-    # Add a condition for each keyword
     for keyword in keywords:
         if keyword and len(keyword.strip()) > 0:
-            # Escape special regex characters
             escaped_keyword = keyword.replace(".", "\\.").replace("*", "\\*").replace("[", "\\[").replace("]", "\\]")
             query["$or"].append({
                 "$or": [
-                    # Search in description
                     {"visual_context.description": {"$regex": escaped_keyword, "$options": "i"}},
-                    # Search in image_location
                     {"visual_context.image_location": {"$regex": escaped_keyword, "$options": "i"}},
-                    # Search in items names
                     {"visual_context.items.name": {"$regex": escaped_keyword, "$options": "i"}},
-                    # Search in items descriptions
                     {"visual_context.items.description": {"$regex": escaped_keyword, "$options": "i"}},
-                    # Search in items locations
                     {"visual_context.items.location": {"$regex": escaped_keyword, "$options": "i"}},
-                    # Search in items colors
                     {"visual_context.items.color": {"$regex": escaped_keyword, "$options": "i"}}
                 ]
             })
     
-    # If no valid keywords were added, return recent contexts
     if len(query["$or"]) == 0:
         return await _fetch_history_async(user_id, limit)
-    
-    # Execute the query, sort by timestamp (newest first)
+
     cursor = visual_collection.find(query).sort("timestamp", -1).limit(limit)
-    
-    # Process results
+
     history = []
     async for document in cursor:
         history.append({
@@ -153,17 +165,3 @@ async def _search_visual_contexts_async(user_id: str, keywords: list[str], limit
         })
     
     return history
-
-def search_visual_contexts_sync(user_id: str, keywords: list[str], limit: int = 10) -> list[dict]:
-    """
-    Synchronous wrapper for search_visual_contexts.
-    
-    Args:
-        user_id: The ID of the user.
-        keywords: List of keywords to search for in visual contexts.
-        limit: Maximum number of results to return.
-        
-    Returns:
-        A list of matching visual contexts with their relative timestamps.
-    """
-    return run_sync(search_visual_contexts(user_id, keywords, limit))
