@@ -5,15 +5,12 @@ from google.genai import types
 from modules import database
 from utils.common import remove_formatting
 
+import speech_recognition as sr
 import json
 import os
 import time
 import random
-import tempfile
-import asyncio
 from google.genai import errors
-import whisper
-from pydub import AudioSegment
 
 load_dotenv()
 
@@ -28,8 +25,7 @@ class VisualContext(BaseModel):
     description: str
     items: list[Item]
 
-# Load the Whisper model once at module initialization
-whisper_model = None  # Will be lazily loaded on first use
+recognizer = sr.Recognizer()
 client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 
 visual_context_config = types.GenerateContentConfig(
@@ -108,50 +104,6 @@ def generate_fallback_response(query):
     # Default fallback
     return "I'm experiencing some technical difficulties accessing my full capabilities right now. Please try again in a few minutes."
 
-async def process_audio_transcription(user_id, audio_data):
-    """Process audio transcription asynchronously.
-    
-    Args:
-        user_id: The ID of the user.
-        audio_data: The audio data to transcribe.
-    """
-    try:
-        # Create temporary files for the audio
-        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_mp3:
-            temp_mp3_path = temp_mp3.name
-            temp_mp3.write(audio_data)
-        
-        # Create a temporary WAV file
-        wav_path = temp_mp3_path.replace(".mp3", ".wav")
-        
-        # Convert MP3 to WAV (Whisper works better with WAV)
-        try:
-            audio = AudioSegment.from_mp3(temp_mp3_path)
-            audio.export(wav_path, format="wav")
-            
-            # Lazy load the Whisper model if not already loaded
-            global whisper_model
-            if whisper_model is None:
-                print("Loading Whisper model...")
-                whisper_model = whisper.load_model("base")
-                print("Whisper model loaded successfully")
-            
-            # Transcribe the audio
-            result = whisper_model.transcribe(wav_path)
-            audio_transcription = result['text']
-            
-            # Update the message in the conversation history
-            await database.update_message(user_id, "user", "[Audio message]", audio_transcription)
-            print(f"Transcription completed: {audio_transcription}")
-        finally:
-            # Clean up temporary files
-            if os.path.exists(temp_mp3_path):
-                os.unlink(temp_mp3_path)
-            if os.path.exists(wav_path):
-                os.unlink(wav_path)
-    except Exception as e:
-        print(f"Error in async audio transcription: {str(e)}")
-
 async def generate_response(user_id, audio_file=None, text_query=None, max_retries=3):
     """Handles user questions about previously saved visual contexts.
     
@@ -227,16 +179,19 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
             if text_query:
                 await database.save_message(user_id, "user", text_query)
             elif audio_file:
-                # First save a placeholder message so we can return quickly
-                await database.save_message(user_id, "user", "[Audio message]")
-                
-                # Make a copy of the audio data for async processing
-                audio_file.seek(0)
-                audio_data = audio_file.read()
-                
-                # Start async transcription without awaiting it
-                # This will run in the background while we return the response
-                asyncio.create_task(process_audio_transcription(user_id, audio_data))
+                try:
+                    # Rewind to the beginning of the file
+                    audio_file.seek(0)
+                    
+                    # Use the audio file directly for speech recognition
+                    with sr.AudioFile(audio_file) as source:
+                        audio_data = recognizer.record(source)
+                        audio_transcription = recognizer.recognize_google(audio_data)
+                        await database.save_message(user_id, "user", audio_transcription)
+                except Exception as e:
+                    print(f"Error transcribing audio: {str(e)}")
+                    # If transcription fails, save a placeholder message
+                    await database.save_message(user_id, "user", "[Audio message]")
                 
             # Save the assistant's response to conversation history
             await database.save_message(user_id, "assistant", response_text)
