@@ -52,7 +52,7 @@ async def upload_image(request: ImageUploadRequest):
         )
 
 @router.get("/vision/clear", status_code=status.HTTP_200_OK)
-async def clear_vision(user_id: str = Form(...)):
+async def clear_vision(user_id: str):
     try:
         await database.wipe_visual_history(user_id)
         return {"message": "Visual history cleared successfully"}
