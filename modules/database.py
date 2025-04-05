@@ -2,9 +2,7 @@ import datetime
 import os
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
-from utils.common import calculate_relative_timestamp
-import asyncio
-import nest_asyncio
+from utils.common import calculate_relative_timestamp, run_sync
 
 load_dotenv()
 
@@ -13,14 +11,6 @@ client = AsyncIOMotorClient(os.getenv('MONGODB_URI'))
 database = client[os.getenv('DATABASE_NAME')]
 visual_collection = database[os.getenv('VISUAL_COLLECTION_NAME')]
 conversation_collection = database[os.getenv('CONVERSATION_COLLECTION_NAME')]
-
-def run_sync(coro):
-    try:
-        return asyncio.run(coro)
-    except RuntimeError as e:
-        nest_asyncio.apply()
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(coro)
 
 def fetch_history(user_id: str) -> list[dict]:
     """Fetches the history of what we saw in around the user along with the relative timestamp of when it occurred.

@@ -6,7 +6,6 @@ import io
 router = APIRouter()
 
 # Handles visual context saving and retrieval, API should receive an image and then call get_visual_context
-
 class VisualContextResponse(BaseModel):
     message: str
     visual_context: dict

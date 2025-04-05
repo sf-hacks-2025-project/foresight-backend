@@ -1,4 +1,14 @@
 import datetime
+import asyncio
+import nest_asyncio
+
+def run_sync(coro):
+    try:
+        return asyncio.run(coro)
+    except RuntimeError as e:
+        nest_asyncio.apply()
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(coro)
 
 def calculate_relative_timestamp(timestamp: float) -> str:
     """Calculates a human-readable relative timestamp (e.g. '5 minutes ago').
