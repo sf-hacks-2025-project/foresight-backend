@@ -4,7 +4,6 @@ from typing import List, Optional
 
 router = APIRouter()
 
-# Example Pydantic models
 class Item(BaseModel):
     id: int
     name: str
