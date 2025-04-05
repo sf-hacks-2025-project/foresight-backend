@@ -178,10 +178,20 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
             # Save the user's message to conversation history
             if text_query:
                 await database.save_message(user_id, "user", text_query)
-            else:
-                audio = recognizer.record(audio_file)
-                audio_transcription = recognizer.recognize_google(audio)
-                await database.save_message(user_id, "user", audio_transcription)
+            elif audio_file:
+                try:
+                    # Rewind to the beginning of the file
+                    audio_file.seek(0)
+                    
+                    # Use the audio file directly for speech recognition
+                    with sr.AudioFile(audio_file) as source:
+                        audio_data = recognizer.record(source)
+                        audio_transcription = recognizer.recognize_google(audio_data)
+                        await database.save_message(user_id, "user", audio_transcription)
+                except Exception as e:
+                    print(f"Error transcribing audio: {str(e)}")
+                    # If transcription fails, save a placeholder message
+                    await database.save_message(user_id, "user", "[Audio message]")
                 
             # Save the assistant's response to conversation history
             await database.save_message(user_id, "assistant", response_text)
