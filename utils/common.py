@@ -44,3 +44,13 @@ def calculate_relative_timestamp(timestamp: float) -> str:
         
     years = months // 12
     return f'{years} year ago' if years == 1 else f'{years} years ago'
+
+def remove_formatting(text: str) -> str:
+    """
+    Removes markdown formatting from a string.
+    Args:
+        text: The string containing markdown formatting.
+    Returns:
+        A string with markdown formatting removed.
+    """
+    return text.replace("`", "").replace("*", "").replace("_", "").replace("\n", " ")

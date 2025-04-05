@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from google.genai import types
 from modules import database
+from utils.common import remove_formatting
 
 import json
 import os
@@ -168,6 +169,7 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
             )
             
             response_text = response.text.strip()
+            response_text = remove_formatting(response_text)
 
             # Save the user's message to conversation history
             if text_query:
