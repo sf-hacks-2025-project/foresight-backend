@@ -5,6 +5,7 @@ from google.genai import types
 from modules import database
 from utils.common import remove_formatting
 
+import speech_recognition as sr
 import json
 import os
 import time
@@ -24,6 +25,7 @@ class VisualContext(BaseModel):
     description: str
     items: list[Item]
 
+recognizer = sr.Recognizer()
 client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 
 visual_context_config = types.GenerateContentConfig(
@@ -45,7 +47,7 @@ async def get_visual_context(picture_file):
     picture = client.files.upload(file=picture_file, config=types.UploadFileConfig(mime_type='image/png'))
     
     base_prompt = f"""
-    You are an assistant for visually impaired users. Given an image, create a detailed visual context that includes:
+    You are an assistant for visually impaired users. Given an image of their point of view, create a detailed visual context that includes:
     
     1. A comprehensive description of the scene including:
     - The overall scene and atmosphere
@@ -144,12 +146,14 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
     IMPORTANT RESPONSE GUIDELINES:
     - Be direct and concise - get straight to the answer
     - Do NOT use phrases like "Based on my visual history" or "I can help with that"
+    - Do NOT use phrases like "The image shows" or "I can see" - speak as if you're describing what's around the person
     - Do NOT mention locations where the requested item wasn't seen
     - If you haven't seen the item they're asking about, simply state that fact without mentioning other locations
     - Group items by location and mention the time only once per location group
       - GOOD: "The woven baskets and wire baskets were on the top shelf, and the bags were hanging on the door 31 minutes ago."
       - BAD: "The woven baskets were on the top shelf 31 minutes ago. The wire baskets were on the top shelf 31 minutes ago."
     - For follow-up questions, provide specific details about EACH item you previously mentioned
+    - For questions about people, respond directly (e.g., "You're looking at a person wearing a black hat just now.")
     """
 
     contents = [base_prompt, *files]
@@ -174,6 +178,20 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
             # Save the user's message to conversation history
             if text_query:
                 await database.save_message(user_id, "user", text_query)
+            elif audio_file:
+                # try:
+                #     # Rewind to the beginning of the file
+                #     audio_file.seek(0)
+                    
+                #     # Use the audio file directly for speech recognition
+                #     with sr.AudioFile(audio_file) as source:
+                #         audio_data = recognizer.record(source)
+                #         audio_transcription = recognizer.recognize_google(audio_data)
+                #         await database.save_message(user_id, "user", audio_transcription)
+                # except Exception as e:
+                #     print(f"Error transcribing audio: {str(e)}")
+                #     # If transcription fails, save a placeholder message
+                await database.save_message(user_id, "user", "[Audio message]")
                 
             # Save the assistant's response to conversation history
             await database.save_message(user_id, "assistant", response_text)
