@@ -19,7 +19,7 @@ async def tts(text: str):
             similarity_boost=1.0,
             style=0.0,
             use_speaker_boost=True,
-            speed=1.0,
+            speed=1.11,
         ),
     )
 
