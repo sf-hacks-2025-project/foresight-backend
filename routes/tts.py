@@ -12,7 +12,7 @@ router = APIRouter()
 async def tts(text: str):
     client: AsyncElevenLabs = await eleven_labs.get_eleven_client()
     response = client.text_to_speech.convert(
-        voice_id="9BWtsMINqrJLrRacOk9x", # We can have a dropdown to change this
+        voice_id=os.getenv('ELEVEN_LABS_VOICE_ID'),
         output_format="mp3_22050_32",
         text=text,
         model_id="eleven_flash_v2_5",
