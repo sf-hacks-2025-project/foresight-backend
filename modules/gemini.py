@@ -31,7 +31,7 @@ visual_context_config = types.GenerateContentConfig(
 )
 
 query_config = types.GenerateContentConfig(
-    tools=[database.search_visual_contexts, database.get_conversation_history],
+    tools=[database.fetch_history, database.get_conversation_history],
     response_mime_type='text/plain',
     temperature=1.0
 )
