@@ -9,8 +9,6 @@ import speech_recognition as sr
 import json
 import os
 import time
-import tempfile
-from pydub import AudioSegment
 import random
 from google.genai import errors
 
@@ -185,28 +183,11 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
                     # Rewind to the beginning of the file
                     audio_file.seek(0)
                     
-                    # Create a temporary file for the MP3
-                    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_mp3:
-                        temp_mp3_path = temp_mp3.name
-                        temp_mp3.write(audio_file.read())
-                    
-                    # Create a temporary file for the WAV conversion
-                    temp_wav_path = temp_mp3_path.replace(".mp3", ".wav")
-                    
-                    # Convert MP3 to WAV using pydub
-                    sound = AudioSegment.from_mp3(temp_mp3_path)
-                    sound.export(temp_wav_path, format="wav")
-                    
-                    # Use the WAV file for speech recognition
-                    with sr.AudioFile(temp_wav_path) as source:
+                    # Use the audio file directly for speech recognition
+                    with sr.AudioFile(audio_file) as source:
                         audio_data = recognizer.record(source)
                         audio_transcription = recognizer.recognize_google(audio_data)
                         await database.save_message(user_id, "user", audio_transcription)
-                    
-                    # Clean up temporary files
-                    os.unlink(temp_mp3_path)
-                    os.unlink(temp_wav_path)
-                    
                 except Exception as e:
                     print(f"Error transcribing audio: {str(e)}")
                     # If transcription fails, save a placeholder message
