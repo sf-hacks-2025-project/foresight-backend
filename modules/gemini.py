@@ -5,6 +5,7 @@ from google.genai import types
 from modules import database
 from utils.common import remove_formatting
 
+import speech_recognition as sr
 import json
 import os
 import time
@@ -24,6 +25,7 @@ class VisualContext(BaseModel):
     description: str
     items: list[Item]
 
+recognizer = sr.Recognizer()
 client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 
 visual_context_config = types.GenerateContentConfig(
@@ -176,6 +178,10 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
             # Save the user's message to conversation history
             if text_query:
                 await database.save_message(user_id, "user", text_query)
+            else:
+                audio = recognizer.record(audio_file)
+                audio_transcription = recognizer.recognize_google(audio)
+                await database.save_message(user_id, "user", audio_transcription)
                 
             # Save the assistant's response to conversation history
             await database.save_message(user_id, "assistant", response_text)
