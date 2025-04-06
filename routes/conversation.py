@@ -32,7 +32,7 @@ async def audio_prompt(user_id: str = Form(...), audio_file: UploadFile = File(.
         
         # Run both tasks concurrently
         response_task = gemini.generate_response(user_id, audio_file=response_audio)
-        transcription_task = gemini.generate_audio_transcription(user_id, audio_file=transcription_audio)
+        transcription_task = gemini.generate_audio_transcription(audio_file=transcription_audio)
         
         # Await both tasks
         results = await asyncio.gather(response_task, transcription_task)

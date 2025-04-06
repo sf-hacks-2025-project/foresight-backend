@@ -102,7 +102,7 @@ def generate_fallback_response(query):
     # Default fallback
     return "I'm experiencing some technical difficulties accessing my full capabilities right now. Please try again in a few minutes."
 
-async def generate_audio_transcription(user_id=None, audio_file=None):
+async def generate_audio_transcription(audio_file=None):
     """
     Transcribes the given audio file using Google's Gemini API.
     
@@ -227,9 +227,6 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
             # Save the user's message to conversation history
             if text_query:
                 await database.save_message(user_id, "user", text_query)
-            elif audio_file:
-                audio_transcription = await generate_audio_transcription(user_id, audio_file)
-                await database.save_message(user_id, "user", audio_transcription)
                 
             # Save the assistant's response to conversation history
             await database.save_message(user_id, "assistant", response_text)
