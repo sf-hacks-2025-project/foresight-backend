@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, status, File, UploadFile,
 from pydantic import BaseModel
 from modules import database, gemini
 import io
+import asyncio
 
 router = APIRouter()
 
@@ -24,7 +25,28 @@ async def text_prompt(request: TextPromptRequest):
 async def audio_prompt(user_id: str = Form(...), audio_file: UploadFile = File(...)):
     try:
         contents = await audio_file.read()
-        return await gemini.generate_response(user_id, audio_file=io.BytesIO(contents))
+        
+        # Create two separate BytesIO objects with the same content
+        response_audio = io.BytesIO(contents)
+        transcription_audio = io.BytesIO(contents)
+        
+        # Run both tasks concurrently
+        response_task = gemini.generate_response(user_id, audio_file=response_audio)
+        transcription_task = gemini.generate_audio_transcription(user_id, audio_file=transcription_audio)
+        
+        # Await both tasks
+        results = await asyncio.gather(response_task, transcription_task)
+        
+        # Extract results
+        response_text = results[0]
+        transcription = results[1]
+
+        # You can log the transcription or use it as needed
+        print(f"Audio transcription: {transcription}")
+
+        asyncio.create_task(database.save_message(user_id, "user", transcription))
+        
+        return response_text
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
