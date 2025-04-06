@@ -12,3 +12,4 @@ speechrecognition>=3.14.2
 numpy==1.26.4
 spacy
 pymongo~=4.11.3
+https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.5.0/en_core_web_md-3.5.0.tar.gz
