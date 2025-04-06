@@ -5,7 +5,6 @@ from google.genai import types
 from modules import database
 from utils.common import remove_formatting
 
-import speech_recognition as sr
 import json
 import os
 import time
@@ -25,7 +24,6 @@ class VisualContext(BaseModel):
     description: str
     items: list[Item]
 
-recognizer = sr.Recognizer()
 client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 
 visual_context_config = types.GenerateContentConfig(
@@ -104,6 +102,57 @@ def generate_fallback_response(query):
     # Default fallback
     return "I'm experiencing some technical difficulties accessing my full capabilities right now. Please try again in a few minutes."
 
+async def generate_audio_transcription(user_id=None, audio_file=None):
+    """
+    Transcribes the given audio file using Google's Gemini API.
+    
+    Args:
+        user_id: Optional user ID for tracking or logging purposes
+        audio_file: Audio file to transcribe (file-like object)
+        
+    Returns:
+        The transcribed text from the audio file
+    """
+    if not audio_file:
+        return "No audio file provided for transcription."
+    
+    try:
+        # Upload the audio file to Gemini
+        audio_upload = await client.aio.files.upload(
+            file=audio_file, 
+            config=types.UploadFileConfig(mime_type='audio/mpeg')
+        )
+        
+        # Reset the file pointer for potential future use
+        audio_file.seek(0)
+        
+        # Create a simple prompt for transcription
+        prompt = """
+        Please transcribe the audio file accurately. 
+        Only provide the transcription text without any additional commentary or explanation.
+        """
+        
+        # Create the generation content
+        generation_config = types.GenerateContentConfig(
+            response_mime_type='text/plain',
+            temperature=0.2  # Lower temperature for more accurate transcription
+        )
+        
+        # Generate the transcription using Gemini
+        response = await client.aio.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=[prompt, audio_upload],
+            config=generation_config
+        )
+        
+        # Extract and return the transcribed text
+        transcription = response.text.strip()
+        return transcription
+    except Exception as e:
+        print(f"Error transcribing audio with Gemini: {str(e)}")
+        return f"Error transcribing audio: {str(e)}"
+
+
 async def generate_response(user_id, audio_file=None, text_query=None, max_retries=3):
     """Handles user questions about previously saved visual contexts.
     
@@ -179,19 +228,8 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
             if text_query:
                 await database.save_message(user_id, "user", text_query)
             elif audio_file:
-                # try:
-                #     # Rewind to the beginning of the file
-                #     audio_file.seek(0)
-                    
-                #     # Use the audio file directly for speech recognition
-                #     with sr.AudioFile(audio_file) as source:
-                #         audio_data = recognizer.record(source)
-                #         audio_transcription = recognizer.recognize_google(audio_data)
-                #         await database.save_message(user_id, "user", audio_transcription)
-                # except Exception as e:
-                #     print(f"Error transcribing audio: {str(e)}")
-                #     # If transcription fails, save a placeholder message
-                await database.save_message(user_id, "user", "[Audio message]")
+                audio_transcription = await generate_audio_transcription(user_id, audio_file)
+                await database.save_message(user_id, "user", audio_transcription)
                 
             # Save the assistant's response to conversation history
             await database.save_message(user_id, "assistant", response_text)
