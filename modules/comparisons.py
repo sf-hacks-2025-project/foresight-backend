@@ -1,20 +1,11 @@
 import asyncio
 from difflib import SequenceMatcher
-import os
-from bson import ObjectId
 from dotenv import load_dotenv
-from motor.motor_asyncio import AsyncIOMotorClient
 import spacy
 from concurrent.futures import ThreadPoolExecutor
 
 
 load_dotenv()
-
-client = AsyncIOMotorClient(os.getenv('MONGODB_URI'))
-
-database = client[os.getenv('DATABASE_NAME')]
-visual_collection = database[os.getenv('VISUAL_COLLECTION_NAME')]
-conversation_collection = database[os.getenv('CONVERSATION_COLLECTION_NAME')]
 
 nlp = spacy.load("en_core_web_md", disable=["ner", "parser", "tagger"])
 
@@ -35,7 +26,7 @@ async def _prepare_doc_items(items):
 
 # Quickly computes a similarity score for the 'color' field using string matching
 # This function is used as a fallback for color comparison where semantic meaning isn't important.
-def _fast_similarity(a, b):
+def fast_similarity(a, b):
     return SequenceMatcher(None, a.lower(), b.lower()).ratio()
 
 # Compares the four key attributes ('name', 'location', 'color', 'description') between two objects
@@ -43,7 +34,7 @@ def _fast_similarity(a, b):
 def compare_objects(obj1, obj2):
     name_sim = obj1["name_doc"].similarity(obj2["name_doc"])
     loc_sim = obj1["location_doc"].similarity(obj2["location_doc"])
-    color_sim = _fast_similarity(obj1["color"], obj2["color"])
+    color_sim = fast_similarity(obj1["color"], obj2["color"])
     desc_sim = obj1["description_doc"].similarity(obj2["description_doc"])
 
 
@@ -61,9 +52,14 @@ def _compare_objects_sync(obj1, items2):
 
 # Asynchronously compares two documents (doc1 and doc2) by processing their items and calculating similarity scores
 # This function uses ThreadPoolExecutor to perform the object comparisons in parallel threads.
-async def _compare_docs(doc1, doc2, threshold=0.75):
+# TK forgot to check image_location & description
+async def compare_docs(doc1, doc2, threshold=0.75):
     items1 = await _prepare_doc_items(doc1["visual_context"]["items"])
     items2 = await _prepare_doc_items(doc2["visual_context"]["items"])
+
+    # figure this out later
+    if len(items1) < 2 and len(items2) < 2: # if both are near empty of items
+        return 1.00 # we should do description & image_location comparison only
 
     loop = asyncio.get_running_loop()
 
@@ -79,17 +75,6 @@ async def _compare_docs(doc1, doc2, threshold=0.75):
     return matched / max(len(items1), len(items2))
 
 
-# ARGS: ObjectID STR and similarity threshold
-# Asynchronously compares two documents from a database based on their 'visual_context' items
-# Returns True if the similarity score exceeds the specified threshold.
-async def compare_visuals(id1: str, id2: str, item_threshold=0.7) -> bool:
-    print("Getting documents")
-    doc1 = await visual_collection.find_one({"_id": ObjectId(id1)})
-    doc2 = await visual_collection.find_one({"_id": ObjectId(id2)})
-    if not doc1 or not doc2:
-        print("No documents")
-        return False
 
 
-    similarity_value = await _compare_docs(doc1, doc2)
-    return similarity_value > item_threshold
+
