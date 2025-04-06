@@ -44,6 +44,7 @@ async def audio_prompt(user_id: str = Form(...), audio_file: UploadFile = File(.
         # Run both tasks concurrently
         response_task = await gemini.generate_response(user_id, audio_file=response_audio)
         asyncio.create_task(handle_transcript_task(transcription_audio, user_id))
+        await database.save_message(user_id, "assistant", response_task)
         
         return response_task
     except Exception as e:

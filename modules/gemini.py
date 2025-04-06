@@ -216,7 +216,7 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
     retry_count = 0
     base_wait_time = 2  # Start with 2 seconds
     
-    while retry_count <= max_retries:
+    while retry_count <= max_retries: 
         try:
             response = await client.aio.models.generate_content(
                 model='gemini-2.0-flash',
@@ -230,9 +230,6 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
             # Save the user's message to conversation history
             if text_query:
                 await database.save_message(user_id, "user", text_query)
-                
-            # Save the assistant's response to conversation history
-            await database.save_message(user_id, "assistant", response_text)
             
             return response_text
 
