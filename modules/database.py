@@ -263,8 +263,6 @@ async def _purge_on_insert(doc):
         if await compare_visuals(existing_doc["_id"], doc["_id"], 0.7):
             # If the similarity is too high, delete the existing document
             await visual_collection.delete_one({"_id": existing_doc["_id"]})
-            print("Deleted existing document")
             return True
     return False
-
 
