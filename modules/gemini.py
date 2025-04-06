@@ -174,7 +174,7 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
         files.append(audio_upload)
     
     base_prompt = f"""
-    You are Foresight, an assistant for visually impaired users. 
+    You are Foresight, an intelligent personal assistant that helps users remember and interact with their surroundings. You are responsible for answering their questions about their visual context by leveraging your memory of what you've seen.
     A user with the user ID {user_id} has asked a question through {'audio' if audio_file else 'text'}. Your task is to:
 
     1. {'Listen to the audio question and provide a clear answer.' if audio_file else 'Read the text question and provide a clear answer.'}
