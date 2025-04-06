@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import spacy
 from concurrent.futures import ThreadPoolExecutor
 
+from numpy.ma.extras import average
 
 load_dotenv()
 
@@ -73,9 +74,9 @@ async def compare_docs(doc1, doc2, threshold=0.75):
     ]
 
     scores = await asyncio.gather(*tasks)
-    matched = sum(score >= threshold for score in scores)
-
-    return matched / max(len(items1), len(items2))
+    return average(scores)
+    # matched = sum(score >= threshold for score in scores)
+    # return matched / max(len(items1), len(items2))
 
 
 
