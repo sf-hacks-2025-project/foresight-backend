@@ -240,7 +240,7 @@ async def _find_similar_entries(doc) -> list[str]:
     return filtered_docs
 
 
-async def purge_all_duplicate_visuals(object_id: str):
+async def purge_duplicates_visuals(object_id: str):
     # Get all documents for a specific user
     doc = await visual_collection.find_one({"_id": ObjectId(object_id)})
     if not doc:

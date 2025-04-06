@@ -1,4 +1,5 @@
 import asyncio
+import os
 from difflib import SequenceMatcher
 from dotenv import load_dotenv
 import spacy
@@ -7,7 +8,9 @@ from concurrent.futures import ThreadPoolExecutor
 
 load_dotenv()
 
-nlp = spacy.load("en_core_web_md", disable=["ner", "parser", "tagger"])
+parent_dir = os.path.dirname((os.path.dirname(__file__)))
+model_dir = os.path.join(parent_dir, "static", "en_core_web_md-3.8.0")
+nlp = spacy.load(model_dir, disable=["ner", "parser", "tagger"])
 
 executor = ThreadPoolExecutor()
 
