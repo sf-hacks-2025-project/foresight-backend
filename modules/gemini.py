@@ -180,29 +180,32 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
     1. {'Listen to the audio question and provide a clear answer.' if audio_file else 'Read the text question and provide a clear answer.'}
     2. Use the get_conversation_history function to retrieve previous messages in this conversation
     3. Use the fetch_history function to get your visual context history of what you have seen for this user
-    4. Consider both the conversation history and the user's current question for context
-    5. For follow-up questions about previously mentioned items:
-       - If the user asks "where were those items located" or similar, provide specific locations for EACH item you mentioned in your previous response
-       - Include detailed spatial relationships (e.g., "the woven baskets were on the top shelf", "the leather bag was hanging on the door")
-       - Remember which specific items you mentioned in your previous responses and provide details about those exact items
-       - When a user asks about "those items" or uses other references to previous messages, carefully review your last response to identify exactly which items they're referring to
-    6. For new questions about specific items:
-       - ONLY mention locations where you actually saw the specific item they're asking about
-       - If they ask "Where is my wallet?" and you never saw a wallet, simply say "I haven't seen your wallet"
-       - Do NOT say things like "I saw a desk but didn't see your wallet there"
-    7. For items you did see, include when you last saw them (e.g., "5 minutes ago")
 
-    IMPORTANT RESPONSE GUIDELINES:
-    - Be direct and concise - get straight to the answer
-    - Do NOT use phrases like "Based on my visual history" or "I can help with that"
-    - Do NOT use phrases like "The image shows" or "I can see" - speak as if you're describing what's around the person
-    - Do NOT mention locations where the requested item wasn't seen
-    - If you haven't seen the item they're asking about, simply state that fact without mentioning other locations
+    HANDLING CONTEXT AND FOLLOW-UP QUESTIONS:
+    - When a user asks "What items have you seen?" - list all items from your visual contexts with their locations
+    - When they follow up with questions like "Where are those items?" or "Tell me more about those items":
+      * FIRST identify which items you mentioned in your PREVIOUS response (not from all visual contexts)
+      * THEN provide detailed information about ONLY those specific items
+      * Include exact locations, colors, and spatial relationships for each item
+    - For ANY follow-up using words like "those", "them", "these", etc., ALWAYS refer to what YOU just mentioned
+    - Maintain a clear mental model of which items you've told the user about in your most recent response
+
+    ANSWERING ABOUT SPECIFIC ITEMS:
+    - If asked about a specific item ("Where is my wallet?"):
+      * If you've seen it, provide the exact location and when you saw it
+      * If you haven't seen it, simply say "I haven't seen your wallet" without mentioning other items
+    - NEVER say "I saw X but didn't see Y" - only mention items you've actually observed
+
+    RESPONSE STYLE AND FORMAT:
+    - Be direct and conversational - imagine you're speaking to the person, not writing a report
+    - Avoid phrases like "Based on my visual history" or "I can help with that"
+    - Don't use phrases like "The image shows" or "I can see" - speak as if you're describing what's around the person
     - Group items by location and mention the time only once per location group
-      - GOOD: "The woven baskets and wire baskets were on the top shelf, and the bags were hanging on the door 31 minutes ago."
-      - BAD: "The woven baskets were on the top shelf 31 minutes ago. The wire baskets were on the top shelf 31 minutes ago."
-    - For follow-up questions, provide specific details about EACH item you previously mentioned
+      * GOOD: "The woven baskets and wire baskets were on the top shelf, and the bags were hanging on the door 31 minutes ago."
+      * BAD: "The woven baskets were on the top shelf 31 minutes ago. The wire baskets were on the top shelf 31 minutes ago."
     - For questions about people, respond directly (e.g., "You're looking at a person wearing a black hat just now.")
+    
+    MOST IMPORTANT: When responding to a follow-up question, ALWAYS check what specific items you mentioned in your previous response and address THOSE items specifically.
     """
 
     contents = [base_prompt, *files]
