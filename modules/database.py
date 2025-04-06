@@ -91,7 +91,7 @@ async def save_visual_context(user_id, visual_context: dict):
     # if len(document["visual_context"]["items"]) < 2:
     result = await visual_collection.insert_one(document)
     await _purge_on_insert(document)
-    # print(result)
+    print(result)
     # else:
     #     print("Insert Failed: No Items in Document")
 
@@ -257,12 +257,14 @@ async def purge_duplicates_visuals(object_id: str):
 async def _purge_on_insert(doc):
     user_id = doc["user_id"]
     recent_docs = await visual_collection.find({"user_id": user_id}).sort("timestamp", -1).limit(5).to_list(length=5)
-    recent_docs = [d for d in recent_docs if str(d["_id"]) != doc["_id"]]
+    recent_docs = [d for d in recent_docs if str(d["_id"]) != str(doc["_id"])]
 
     for existing_doc in recent_docs:
         if await compare_visuals(existing_doc["_id"], doc["_id"], 0.7):
             # If the similarity is too high, delete the existing document
             await visual_collection.delete_one({"_id": existing_doc["_id"]})
+            print("Deleted existing document")
             return True
     return False
+
 
