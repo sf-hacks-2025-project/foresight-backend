@@ -1,12 +1,11 @@
 import asyncio
-import difflib
+from difflib import SequenceMatcher
 import os
-from itertools import product
-from typing import Dict, List
 from bson import ObjectId
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 import spacy
+from concurrent.futures import ThreadPoolExecutor
 
 
 load_dotenv()
@@ -17,40 +16,73 @@ database = client[os.getenv('DATABASE_NAME')]
 visual_collection = database[os.getenv('VISUAL_COLLECTION_NAME')]
 conversation_collection = database[os.getenv('CONVERSATION_COLLECTION_NAME')]
 
-nlp = spacy.load("en_core_web_md")  # or "en_core_web_lg"
+nlp = spacy.load("en_core_web_md", disable=["ner", "parser", "tagger"])
 
-def item_fingerprint(item: Dict) -> str:
-    return f"{item['name'].lower()}|{item['color'].lower()}"
-    # return item['name'].strip().lower()
+executor = ThreadPoolExecutor()
 
-def jaccard_similarity(set1: set, set2: set) -> float:
-    intersection = len(set1 & set2)
-    union = len(set1 | set2)
-    return intersection / union if union != 0 else 0
+NAME_WEIGHT = 0.4
+LOCATION_WEIGHT = 0.2
+COLOR_WEIGHT = 0.2
+DESCRIPTION_WEIGHT = 0.2
 
-def text_similarity(text1: str, text2: str) -> float:
-    return difflib.SequenceMatcher(None, text1, text2).ratio()
+# Preprocesses items in a document by creating 'doc' fields for the 'name', 'location', and 'description'
+# These fields store the processed spaCy document objects for faster similarity comparison.
+async def prepare_doc_items(items):
+    for item in items:
+        for key in ["name", "location", "description"]:
+            item[f"{key}_doc"] = nlp(item[key])
+    return items
 
-def nlp_similarity(a: str, b: str) -> float:
-    return nlp(a).similarity(nlp(b))
+# Quickly computes a similarity score for the 'color' field using string matching
+# This function is used as a fallback for color comparison where semantic meaning isn't important.
+def fast_similarity(a, b):
+    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
 
-def compare_object_names(doc1, doc2, threshold=0.85):
-    names1 = [item["name"] for item in doc1["visual_context"]["items"]]
-    names2 = [item["name"] for item in doc2["visual_context"]["items"]]
-
-    if not names1 or not names2:
-        return 0.0
-
-    matches = []
-    for name1, name2 in product(names1, names2):
-        score = nlp_similarity(name1, name2)
-        if score >= threshold:
-            matches.append((name1, name2, score))
-
-    return len(matches) / (len(names1) + len(names2)) * 2
+# Compares the four key attributes ('name', 'location', 'color', 'description') between two objects
+# Each attribute has a weighted contribution to the final similarity score.
+def compare_objects(obj1, obj2):
+    name_sim = obj1["name_doc"].similarity(obj2["name_doc"])
+    loc_sim = obj1["location_doc"].similarity(obj2["location_doc"])
+    color_sim = fast_similarity(obj1["color"], obj2["color"])
+    desc_sim = obj1["description_doc"].similarity(obj2["description_doc"])
 
 
-async def compare_visuals(id1: str, id2: str, item_threshold=0.8, desc_threshold=0.75) -> bool:
+    return (
+        name_sim * NAME_WEIGHT +
+        loc_sim * LOCATION_WEIGHT +
+        color_sim * COLOR_WEIGHT +
+        desc_sim * DESCRIPTION_WEIGHT
+    )
+
+# Synchronously compares an object from items1 to all objects in items2 and returns the best similarity score
+def compare_objects_sync(obj1, items2, threshold):
+    # For each object in items2, compute the similarity score with obj1 and return the highest score
+    return max(compare_objects(obj1, obj2) for obj2 in items2)
+
+# Asynchronously compares two documents (doc1 and doc2) by processing their items and calculating similarity scores
+# This function uses ThreadPoolExecutor to perform the object comparisons in parallel threads.
+async def compare_docs(doc1, doc2, threshold=0.75):
+    items1 = await prepare_doc_items(doc1["visual_context"]["items"])
+    items2 = await prepare_doc_items(doc2["visual_context"]["items"])
+
+    loop = asyncio.get_running_loop()
+
+    # Schedule all comparisons in parallel threads
+    tasks = [
+        loop.run_in_executor(executor, compare_objects_sync, obj1, items2, threshold)
+        for obj1 in items1
+    ]
+
+    scores = await asyncio.gather(*tasks)
+    matched = sum(score >= threshold for score in scores)
+
+    return matched / max(len(items1), len(items2))
+
+
+# ARGS: ObjectID STR and similarity threshold
+# Asynchronously compares two documents from a database based on their 'visual_context' items
+# Returns True if the similarity score exceeds the specified threshold.
+async def compare_visuals(id1: str, id2: str, item_threshold=0.7) -> bool:
     print("Getting documents")
     doc1 = await visual_collection.find_one({"_id": ObjectId(id1)})
     doc2 = await visual_collection.find_one({"_id": ObjectId(id2)})
@@ -58,27 +90,6 @@ async def compare_visuals(id1: str, id2: str, item_threshold=0.8, desc_threshold
         print("No documents")
         return False
 
-    spacy_sim = compare_object_names(doc1, doc2)
-    print(f"Item Name Vector Similarity: {round(spacy_sim, 2)*100}")
 
-    items1 = {item_fingerprint(i) for i in doc1["visual_context"]["items"]}
-    items2 = {item_fingerprint(i) for i in doc2["visual_context"]["items"]}
-    item_sim = jaccard_similarity(items1, items2)
-    print(f"Item Jaccard Similarity: {round(item_sim, 2)*100}%")
-
-    desc1 = doc1["visual_context"]["description"]
-    desc2 = doc2["visual_context"]["description"]
-    desc_sim = text_similarity(desc1, desc2)
-    print(f"Description Text Similarity: {round(desc_sim, 2)*100}%")
-
-    loc1 = doc1["visual_context"]["image_location"]
-    loc2 = doc2["visual_context"]["image_location"]
-    loc_sim = text_similarity(loc1, loc2)
-    print(f"Location Text Similarity: {round(loc_sim, 2)*100}%")
-
-
-
-    return False
-
-if __name__ == '__main__':
-    asyncio.run(compare_visuals('67f1afeb060c2ce1282a220a', '67f1aff7060c2ce1282a220c'))
+    similarity_value = await compare_docs(doc1, doc2)
+    return similarity_value > item_threshold
