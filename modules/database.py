@@ -206,12 +206,15 @@ async def compare_visuals(id1: str, id2: str, item_threshold=0.7) -> bool:
         bool: True if the similarity score between the documents exceeds the threshold,
               False otherwise.
     """
+    print("begin")
     doc1 = await visual_collection.find_one({"_id": ObjectId(id1)})
     doc2 = await visual_collection.find_one({"_id": ObjectId(id2)})
     if not doc1 or not doc2:
         return False
 
+
     similarity_value = await comparisons.compare_docs(doc1, doc2)
+    # print(similarity_value)
     return similarity_value > item_threshold
 
 
@@ -246,7 +249,7 @@ async def purge_duplicates_visuals(object_id: str):
     if not doc:
         return
     similar_docs_ids = await _find_similar_entries(doc)
-    print(f"Found {len(similar_docs_ids)} similar documents")
+    # print(f"Found {len(similar_docs_ids)} similar documents")
     for similar_doc_id in similar_docs_ids:
         if await compare_visuals(object_id, similar_doc_id, 0.7):
             await visual_collection.delete_one({"_id": ObjectId(similar_doc_id)})
@@ -254,6 +257,7 @@ async def purge_duplicates_visuals(object_id: str):
 async def _purge_on_insert(doc):
     user_id = doc["user_id"]
     recent_docs = await visual_collection.find({"user_id": user_id}).sort("timestamp", -1).limit(5).to_list(length=5)
+    recent_docs = [d for d in recent_docs if str(d["_id"]) != doc["_id"]]
 
     for existing_doc in recent_docs:
         if await compare_visuals(existing_doc["_id"], doc["_id"], 0.7):
@@ -261,4 +265,3 @@ async def _purge_on_insert(doc):
             await visual_collection.delete_one({"_id": existing_doc["_id"]})
             return True
     return False
-
