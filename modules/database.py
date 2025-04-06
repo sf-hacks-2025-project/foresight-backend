@@ -88,12 +88,12 @@ async def save_visual_context(user_id, visual_context: dict):
         "visual_context": visual_context,
         "timestamp": datetime.datetime.now().timestamp()  # unix timestamp
     }
-    if len(document["visual_context"]["items"]) < 2:
-        result = await visual_collection.insert_one(document)
-        await _purge_on_insert(document)
-        print(result)
-    else:
-        print("Insert Failed: No Items in Document")
+    # if len(document["visual_context"]["items"]) < 2:
+    result = await visual_collection.insert_one(document)
+    await _purge_on_insert(document)
+    # print(result)
+    # else:
+    #     print("Insert Failed: No Items in Document")
 
 
 async def wipe_conversation_history(user_id: str):
@@ -206,7 +206,7 @@ async def compare_visuals(id1: str, id2: str, item_threshold=0.7) -> bool:
         bool: True if the similarity score between the documents exceeds the threshold,
               False otherwise.
     """
-    print("begin")
+    # print("begin")
     doc1 = await visual_collection.find_one({"_id": ObjectId(id1)})
     doc2 = await visual_collection.find_one({"_id": ObjectId(id2)})
     if not doc1 or not doc2:
@@ -265,3 +265,4 @@ async def _purge_on_insert(doc):
             await visual_collection.delete_one({"_id": existing_doc["_id"]})
             return True
     return False
+
