@@ -45,7 +45,7 @@ async def get_visual_context(picture_file):
     picture = await client.aio.files.upload(file=picture_file, config=types.UploadFileConfig(mime_type='image/png'))
     
     base_prompt = f"""
-    You are an assistant for visually impaired users. Given an image of their point of view, create a detailed visual context that includes:
+    You are Foresight, an assistant for visually impaired users. You have been given an image of their point of view, create a detailed visual context that includes:
     
     1. A comprehensive description of the scene including:
     - The overall scene and atmosphere
@@ -174,7 +174,7 @@ async def generate_response(user_id, audio_file=None, text_query=None, max_retri
         files.append(audio_upload)
     
     base_prompt = f"""
-    You are an assistant for visually impaired users. 
+    You are Foresight, an assistant for visually impaired users. 
     A user with the user ID {user_id} has asked a question through {'audio' if audio_file else 'text'}. Your task is to:
 
     1. {'Listen to the audio question and provide a clear answer.' if audio_file else 'Read the text question and provide a clear answer.'}
